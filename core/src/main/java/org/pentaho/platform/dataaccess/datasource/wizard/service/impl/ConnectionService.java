@@ -33,7 +33,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -94,7 +93,7 @@ public class ConnectionService {
     IDatabaseConnection conn = null;
     Response response;
     try {
-      conn = connectionService.getConnectionByName( StringEscapeUtils.escapeHtml( name ) );
+      conn = connectionService.getConnectionByName( sanitizer.safeEscapeHtml( name ) );
       if ( conn != null ) {
         response = Response.ok().entity( conn.getId() ).build();
       } else {
@@ -121,6 +120,7 @@ public class ConnectionService {
   @Facet( name = "Unsupported" )
   public StringArrayWrapper checkParameters( DatabaseConnection connection ) {
     StringArrayWrapper array = null;
+    sanitizer.sanitizeConnectionParameters( connection );
     String[] rawValues = DatabaseUtil.convertToDatabaseMeta( connection ).checkParameters();
     if ( rawValues.length > 0 ) {
       array = new StringArrayWrapper();
@@ -237,6 +237,7 @@ public class ConnectionService {
   @Facet( name = "Unsupported" )
   public Response testConnection( DatabaseConnection connection ) throws ConnectionServiceException {
     boolean success = false;
+    sanitizer.sanitizeConnectionParameters( connection );
     applySavedPassword( connection );
     success = connectionService.testConnection( connection );
     if ( success ) {
@@ -284,6 +285,7 @@ public class ConnectionService {
    * during sending to UI, we need to use stored password.
    */
   private void applySavedPassword( IDatabaseConnection conn ) throws ConnectionServiceException {
+    sanitizer.sanitizeConnectionParameters( conn );
     if ( StringUtils.isBlank( conn.getPassword() ) ) {
       IDatabaseConnection savedConn;
       if ( conn.getId() != null ) {
@@ -319,6 +321,7 @@ public class ConnectionService {
   @Facet( name = "Unsupported" )
   public Response deleteConnection( DatabaseConnection connection ) throws ConnectionServiceException {
     try {
+      sanitizer.sanitizeConnectionParameters( connection );
       boolean success = connectionService.deleteConnection( connection );
       if ( success ) {
         return Response.ok().build();
@@ -344,7 +347,7 @@ public class ConnectionService {
   @Path( "/deletebyname" )
   public Response deleteConnectionByName( @QueryParam( "name" ) String name ) throws ConnectionServiceException {
     try {
-      boolean success = connectionService.deleteConnection( StringEscapeUtils.escapeHtml( name ) );
+      boolean success = connectionService.deleteConnection( sanitizer.safeEscapeHtml( name ) );
       if ( success ) {
         return Response.ok().build();
       } else {
@@ -415,6 +418,7 @@ public class ConnectionService {
     IDatabaseConnectionList databaseConnections = new DefaultDatabaseConnectionList();
     List<IDatabaseConnection> conns = connectionService.getConnections();
     for ( IDatabaseConnection conn : conns ) {
+      sanitizer.unsanitizeConnectionParameters( conn );
       hidePassword( conn );
     }
     databaseConnections.setDatabaseConnections( conns );
@@ -435,7 +439,7 @@ public class ConnectionService {
   @Produces( { APPLICATION_JSON } )
   @Facet( name = "Unsupported" )
   public IDatabaseConnection getConnectionByName( @QueryParam( "name" ) String name ) throws ConnectionServiceException {
-    IDatabaseConnection conn = connectionService.getConnectionByName( StringEscapeUtils.escapeHtml( name ) );
+    IDatabaseConnection conn = connectionService.getConnectionByName( sanitizer.safeEscapeHtml( name ) );
     hidePassword( conn );
     return conn;
   }
@@ -454,7 +458,7 @@ public class ConnectionService {
   @Produces( { APPLICATION_JSON } )
   @Facet( name = "Unsupported" )
   public Response isConnectionExist( @QueryParam( "name" ) String name ) throws ConnectionServiceException {
-    boolean exists = connectionService.isConnectionExist( StringEscapeUtils.escapeHtml( name ) );
+    boolean exists = connectionService.isConnectionExist( sanitizer.safeEscapeHtml( name ) );
     try {
       if ( exists ) {
         return Response.ok().build();
@@ -480,7 +484,7 @@ public class ConnectionService {
     IDatabaseConnection conn = null;
     Response response;
     try {
-      conn = connectionService.getConnectionByName( StringEscapeUtils.escapeHtml( name ) );
+      conn = connectionService.getConnectionByName( sanitizer.safeEscapeHtml( name ) );
       hidePassword( conn );
       response = Response.ok().entity( conn ).build();
     } catch ( Exception ex ) {
